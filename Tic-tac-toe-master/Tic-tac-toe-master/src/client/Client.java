@@ -1,18 +1,20 @@
 package client;
 
-import java.awt.*;
-import java.awt.event.*;
-import java.io.*;
-import java.net.*;
-
-import gui.PlayerChat;
 import gui.PlayControl;
+import gui.PlayerChat;
 import gui.PlayerInput;
 import gui.PlayerList;
 import pad.board;
 
+import java.awt.*;
+import java.awt.event.*;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.Socket;
 
-public class Client extends Frame implements ActionListener,KeyListener {
+
+public class Client extends Frame implements ActionListener, KeyListener {
 
     Socket clientSocket;
 
@@ -52,8 +54,7 @@ public class Client extends Frame implements ActionListener,KeyListener {
     Panel eastPanel = new Panel();
 
     // 构造方法，创建界面
-    public Client()
-    {
+    public Client() {
         super("Tic-tac-toe Game");
         setLayout(new BorderLayout());
         host = playControl.ipInputted.getText();
@@ -81,25 +82,19 @@ public class Client extends Frame implements ActionListener,KeyListener {
         southPanel.add(playControl, BorderLayout.CENTER);
         southPanel.setBackground(Color.LIGHT_GRAY);
 
-        addWindowListener(new WindowAdapter()
-        {
-            public void windowClosing(WindowEvent e)
-            {
-                if (isOnChat)
-                { // 聊天中
-                    try
-                    { // 关闭客户端套接口
+        addWindowListener(new WindowAdapter() {
+            public void windowClosing(WindowEvent e) {
+                if (isOnChat) { // 聊天中
+                    try { // 关闭客户端套接口
                         clientSocket.close();
+                    } catch (Exception ed) {
                     }
-                    catch (Exception ed){}
                 }
-                if (isOnChess || isGameConnected)
-                { // 下棋中
-                    try
-                    { // 关闭下棋端口
+                if (isOnChess || isGameConnected) { // 下棋中
+                    try { // 关闭下棋端口
                         board.chessSocket.close();
+                    } catch (Exception ee) {
                     }
-                    catch (Exception ee){}
                 }
                 System.exit(0);
             }
@@ -115,11 +110,13 @@ public class Client extends Frame implements ActionListener,KeyListener {
         this.validate();
     }
 
+    public static void main(String[] args) {
+        Client chessClient = new Client();
+    }
+
     // 按指定的IP地址和端口连接到服务器
-    public boolean connectToServer(String serverIP, int serverPort) throws Exception
-    {
-        try
-        {
+    public boolean connectToServer(String serverIP, int serverPort) throws Exception {
+        try {
             // 创建客户端套接口
             clientSocket = new Socket(serverIP, serverPort);
             // 创建输入流
@@ -132,9 +129,7 @@ public class Client extends Frame implements ActionListener,KeyListener {
             clientthread.start();
             isOnChat = true;
             return true;
-        }
-        catch (IOException ex)
-        {
+        } catch (IOException ex) {
             playerChat.chatTextArea
                     .setText("不能连接!\n");
         }
@@ -142,64 +137,46 @@ public class Client extends Frame implements ActionListener,KeyListener {
     }
 
     // 客户端事件处理
-    public void actionPerformed(ActionEvent e)
-    {
-        if (e.getSource() == playControl.connectButton)
-        { // 连接到主机按钮单击事件
+    public void actionPerformed(ActionEvent e) {
+        if (e.getSource() == playControl.connectButton) { // 连接到主机按钮单击事件
             host = board.host = playControl.ipInputted.getText(); // 取得主机地址
-            try
-            {
-                if (connectToServer(host, port))
-                { // 成功连接到主机时，设置客户端相应的界面状态
+            try {
+                if (connectToServer(host, port)) { // 成功连接到主机时，设置客户端相应的界面状态
                     playerChat.chatTextArea.setText("");
                     playControl.connectButton.setEnabled(false);
                     playControl.createButton.setEnabled(true);
                     playControl.joinButton.setEnabled(true);
                     board.statusText.setText("连接成功，请等待!");
                 }
-            }
-            catch (Exception ei)
-            {
+            } catch (Exception ei) {
                 playerChat.chatTextArea
                         .setText("不能连接!\n");
             }
         }
-        if (e.getSource() == playControl.exitButton)
-        { // 离开游戏按钮单击事件
-            if (isOnChat)
-            { // 若用户处于聊天状态中
-                try
-                { // 关闭客户端套接口
+        if (e.getSource() == playControl.exitButton) { // 离开游戏按钮单击事件
+            if (isOnChat) { // 若用户处于聊天状态中
+                try { // 关闭客户端套接口
                     clientSocket.close();
+                } catch (Exception ed) {
                 }
-                catch (Exception ed){}
             }
-            if (isOnChess || isGameConnected)
-            { // 若用户处于游戏状态中
-                try
-                { // 关闭游戏端口
+            if (isOnChess || isGameConnected) { // 若用户处于游戏状态中
+                try { // 关闭游戏端口
                     board.chessSocket.close();
+                } catch (Exception ee) {
                 }
-                catch (Exception ee){}
             }
             System.exit(0);
         }
-        if (e.getSource() == playControl.joinButton)
-        { // 加入游戏按钮单击事件
-            String selectedUser = (String) playerList.userList.getSelectedItem(); // 取得要加入的游戏
+        if (e.getSource() == playControl.joinButton) { // 加入游戏按钮单击事件
+            String selectedUser = playerList.userList.getSelectedItem(); // 取得要加入的游戏
             if (selectedUser == null || selectedUser.startsWith("[inchess]") ||
-                    selectedUser.equals(chessClientName))
-            { // 若未选中要加入的用户，或选中的用户已经在游戏，则给出提示信息
+                    selectedUser.equals(chessClientName)) { // 若未选中要加入的用户，或选中的用户已经在游戏，则给出提示信息
                 board.statusText.setText("必须选择一个用户!");
-            }
-            else
-            { // 执行加入游戏的操作
-                try
-                {
-                    if (!isGameConnected)
-                    { // 若游戏套接口未连接
-                        if (board.connectServer(board.host, board.port))
-                        { // 若连接到主机成功
+            } else { // 执行加入游戏的操作
+                try {
+                    if (!isGameConnected) { // 若游戏套接口未连接
+                        if (board.connectServer(board.host, board.port)) { // 若连接到主机成功
                             isGameConnected = true;
                             isOnChess = true;
                             isParticipant = true;
@@ -207,24 +184,20 @@ public class Client extends Frame implements ActionListener,KeyListener {
                             playControl.joinButton.setEnabled(false);
                             playControl.cancelButton.setEnabled(true);
                             board.boardThread.sendMessage("/joingame "
-                                    + (String) playerList.userList.getSelectedItem() + " "
+                                    + playerList.userList.getSelectedItem() + " "
                                     + chessClientName);
                         }
-                    }
-                    else
-                    { // 若游戏端口连接中
+                    } else { // 若游戏端口连接中
                         isOnChess = true;
                         isParticipant = true;
                         playControl.createButton.setEnabled(false);
                         playControl.joinButton.setEnabled(false);
                         playControl.cancelButton.setEnabled(true);
                         board.boardThread.sendMessage("/joingame "
-                                + (String) playerList.userList.getSelectedItem() + " "
+                                + playerList.userList.getSelectedItem() + " "
                                 + chessClientName);
                     }
-                }
-                catch (Exception ee)
-                {
+                } catch (Exception ee) {
                     isGameConnected = false;
                     isOnChess = false;
                     isParticipant = false;
@@ -236,14 +209,10 @@ public class Client extends Frame implements ActionListener,KeyListener {
                 }
             }
         }
-        if (e.getSource() == playControl.createButton)
-        { // 创建游戏按钮单击事件
-            try
-            {
-                if (!isGameConnected)
-                { // 若游戏端口未连接
-                    if (board.connectServer(board.host, board.port))
-                    { // 若连接到主机成功
+        if (e.getSource() == playControl.createButton) { // 创建游戏按钮单击事件
+            try {
+                if (!isGameConnected) { // 若游戏端口未连接
+                    if (board.connectServer(board.host, board.port)) { // 若连接到主机成功
                         isGameConnected = true;
                         isOnChess = true;
                         isCreator = true;
@@ -253,9 +222,7 @@ public class Client extends Frame implements ActionListener,KeyListener {
                         board.boardThread.sendMessage("/creatgame "
                                 + "[inchess]" + chessClientName);
                     }
-                }
-                else
-                { // 若游戏端口连接中
+                } else { // 若游戏端口连接中
                     isOnChess = true;
                     isCreator = true;
                     playControl.createButton.setEnabled(false);
@@ -264,9 +231,7 @@ public class Client extends Frame implements ActionListener,KeyListener {
                     board.boardThread.sendMessage("/creatgame "
                             + "[inchess]" + chessClientName);
                 }
-            }
-            catch (Exception ec)
-            {
+            } catch (Exception ec) {
                 isGameConnected = false;
                 isOnChess = false;
                 isCreator = false;
@@ -278,10 +243,8 @@ public class Client extends Frame implements ActionListener,KeyListener {
                         + ec);
             }
         }
-        if (e.getSource() == playControl.cancelButton)
-        { // 退出游戏按钮单击事件
-            if (isOnChess)
-            { // 游戏中
+        if (e.getSource() == playControl.cancelButton) { // 退出游戏按钮单击事件
+            if (isOnChess) { // 游戏中
                 board.boardThread.sendMessage("/giveup " + chessClientName);
                 board.setVicStatus(-1 * board.chessColor);
                 playControl.createButton.setEnabled(true);
@@ -289,8 +252,7 @@ public class Client extends Frame implements ActionListener,KeyListener {
                 playControl.cancelButton.setEnabled(false);
                 board.statusText.setText("请创建或加入游戏!");
             }
-            if (!isOnChess)
-            { // 非游戏中
+            if (!isOnChess) { // 非游戏中
                 playControl.createButton.setEnabled(true);
                 playControl.joinButton.setEnabled(true);
                 playControl.cancelButton.setEnabled(false);
@@ -300,21 +262,15 @@ public class Client extends Frame implements ActionListener,KeyListener {
         }
     }
 
-    public void keyPressed(KeyEvent e)
-    {
+    public void keyPressed(KeyEvent e) {
         TextField inputwords = (TextField) e.getSource();
-        if (e.getKeyCode() == KeyEvent.VK_ENTER)
-        { // 处理回车按键事件
-            if (playerInput.userChoice.getSelectedItem().equals("所有用户"))
-            { // 给所有人发信息
-                try
-                {
+        if (e.getKeyCode() == KeyEvent.VK_ENTER) { // 处理回车按键事件
+            if (playerInput.userChoice.getSelectedItem().equals("所有用户")) { // 给所有人发信息
+                try {
                     // 发送信息
                     outputStream.writeUTF(inputwords.getText());
                     inputwords.setText("");
-                }
-                catch (Exception ea)
-                {
+                } catch (Exception ea) {
                     playerChat.chatTextArea
                             .setText("不能连接到服务器!\n");
                     playerList.userList.removeAll();
@@ -322,17 +278,12 @@ public class Client extends Frame implements ActionListener,KeyListener {
                     inputwords.setText("");
                     playControl.connectButton.setEnabled(true);
                 }
-            }
-            else
-            { // 给指定人发信息
-                try
-                {
+            } else { // 给指定人发信息
+                try {
                     outputStream.writeUTF("/" + playerInput.userChoice.getSelectedItem()
                             + " " + inputwords.getText());
                     inputwords.setText("");
-                }
-                catch (Exception ea)
-                {
+                } catch (Exception ea) {
                     playerChat.chatTextArea
                             .setText("不能连接到服务器!\n");
                     playerList.userList.removeAll();
@@ -344,11 +295,9 @@ public class Client extends Frame implements ActionListener,KeyListener {
         }
     }
 
-    public void keyTyped(KeyEvent e) {}
-    public void keyReleased(KeyEvent e) {}
+    public void keyTyped(KeyEvent e) {
+    }
 
-    public static void main(String args[])
-    {
-        Client chessClient = new Client();
+    public void keyReleased(KeyEvent e) {
     }
 }
